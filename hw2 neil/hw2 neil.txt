@@ -1,0 +1,164 @@
+1)Query 1
+
+
+with t0 as (select distinct a.prod,b.month
+		 from sales a, sales b 
+		 order by a.prod,b.month), 
+t1 as   (select prod,month,avg(quant) as avg_q,(month+1) as before_month 
+	  	from sales 
+		group by prod,month 
+	  	order by prod,month ),
+t2 as ( select prod,month,avg(quant) as avg_q,(month-1) as after_month 
+	  from sales
+	   group by prod,month 
+	  order by prod,month),
+t2a as ( select prod,month,avg(quant) as avg_q 
+	  from sales
+	   group by prod,month 
+	  order by prod,month),
+	  
+t3 as	(select t0.prod ,t0.month,ROUND(t1.avg_q,3) as before_avg,ROUND(t2a.avg_q,3) as during_avg,ROUND(t2.avg_q,3) as after_avg
+		from t0 
+		left join t1
+		 on t0.prod = t1.prod and
+	  	t0.month = t1.before_month
+		 left join t2 
+		 on  
+	  		t0.prod = t2.prod and
+	  		t0.month = t2.after_month
+		 left join t2a
+		  on  
+	  		t0.prod = t2a.prod and
+	  		t0.month = t2a.month
+		order by t0.prod,t0.month
+		),
+t4 as (select  prod,month,quant
+ from sales 
+ order by prod,month),
+ t5 as (Select t3.prod, t3.month, count(quant) as SALES_COUNT_BETWEEN_AVGS 
+	   from t3 
+	   left join t4 
+	   using(prod,month)
+		where quant between t3.before_avg and t3.after_avg
+	  	 group by t3.prod, t3.month
+		order by t3.prod,t3.month 
+	   ),
+t6 as (Select t3.prod, t3.month, count(quant) as SALES_COUNT_BETWEEN_AVGS 
+	   from t3 
+	   left join t4 
+	   using(prod,month)
+		group by t3.prod, t3.month
+		order by t3.prod,t3.month 
+	   ),
+t7 as (select t6.prod,t6.month,t5.SALES_COUNT_BETWEEN_AVGS
+	  from t6
+	  left join t5
+	  using(prod,month)
+	  order by t6.prod,t6.month )
+
+select * from t7
+
+
+
+2)Query 2
+
+with t0 as (select distinct a.cust,a.prod,b.month
+		 from sales a, sales b 
+		 order by a.cust,a.prod,b.month), 
+t1 as   (select cust,prod,month,avg(quant) as avg_q,(month+1) as before_month 
+	  	from sales 
+		group by cust,prod,month 
+	  	order by cust,prod,month ),
+t2 as ( select cust,prod,month,avg(quant) as avg_q,(month-1) as after_month 
+	  from sales
+	   group by cust,prod,month 
+	  order by cust,prod,month),
+t2a as ( select cust,prod,month,avg(quant) as avg_q 
+	  from sales
+	   group by cust,prod,month 
+	  order by cust,prod,month),
+	  
+t3 as	(select t0.cust as customer,t0.prod as product,t0.month,ROUND(t1.avg_q,3) as before_avg,ROUND(t2a.avg_q,3) as during_avg,ROUND(t2.avg_q,3) as after_avg
+		from t0 
+		left join t1
+		 on t0.cust = t1.cust and
+	  	t0.prod = t1.prod and
+	  	t0.month = t1.before_month
+		 left join t2 
+		 on  t0.cust = t2.cust and
+	  		t0.prod = t2.prod and
+	  		t0.month = t2.after_month
+		 left join t2a
+		  on  t0.cust = t2a.cust and
+	  		t0.prod = t2a.prod and
+	  		t0.month = t2a.month
+		order by t0.cust,t0.prod,t0.month
+		)
+select * from t3
+	 
+	  
+3)Query 3
+with t0 as 
+
+(select cust as customer,prod as product, state, round(avg(quant),3) as average 
+ from sales 
+ group by cust,prod,state
+ order by cust,prod)
+ ,
+
+t1 as
+	
+(select a.cust as customer,a.prod as product,a.state,round(avg(b.quant),3) as other_cust_avg 
+from sales a, sales b 
+where a.prod = b.prod and
+	  a.cust != b.cust and
+	  a.state = b.state
+group by a.cust,a.prod,a.state
+order by a.cust,a.prod,a.state)
+
+,
+
+t2 as 
+(select a.cust as customer,a.prod as product,a.state, round(avg(b.quant),3) as other_prod_avg 
+ from sales a, sales b
+ where a.prod != b.prod  and
+ 	   a.state = b.state and 
+ 	   a.cust = b.cust
+group by a.cust,a.prod,a.state
+order by a.cust,a.prod,a.state)
+
+
+select * from t0
+natural join t1 
+natural join t2 
+order by customer,product,state
+
+
+query 4)
+with t0 as(
+select cust,prod,month,sum(quant) as monthly 
+	from sales 
+	group by cust,prod,month 
+	order by cust,prod,month), 
+
+t1  as(
+select a.cust,a.prod,a.month,a.monthly,SUM(b.monthly) as cum_sum
+	from t0 as a,t0 as b
+	where a.prod = b.prod and
+	a.cust = b.cust and
+	b.month <= a.month
+	group by a.cust,a.month,a.prod,a.monthly
+	order by a.cust,a.prod,a.month)
+,
+
+t2 as(
+select cust,prod,sum(quant) 
+	from sales 
+	group by cust,prod 
+	order by cust,prod)
+
+select cs.cust as "CUSTOMER",cs.prod as "PRODUCT" ,min(cs.month) as "1/3 PURCHASED BY MONTH" 
+	from t1 as cs,t2 as ts
+	where cs.cust = ts.cust and cs.prod = ts.prod and cs.cum_sum >= ts.sum/3
+	group by cs.cust,cs.prod 
+	order by cs.cust,cs.prod

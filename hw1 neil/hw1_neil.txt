@@ -1,0 +1,167 @@
+Assignment 1 
+Neil Gupte
+CWID:10445674
+1)Query1 
+with table1 as (select cust,min(quant) as minq,max(quant)as maxq,avg(quant) as avgq 
+from sales 
+group by cust),
+table2 as (select table1.cust,table1.minq,sales.prod,
+		   sales.month as mon,sales.day as days,sales.year as years,
+		   sales.state
+		  from table1,sales
+		  where table1.cust=sales.cust and table1.minq=sales.quant),
+table3 as (select table1.cust,table1.maxq,sales.prod,
+		   sales.month as mon,sales.day as days,sales.year as years,
+		   sales.state
+		  from table1,sales
+		  where table1.cust=sales.cust and table1.maxq=sales.quant)
+select table1.cust as CUSTOMER, table1.minq as MIN_Q,table2.prod as MIN_PROD,
+table2.mon,table2.days,table2.years,
+table2.state as ST,
+table1.maxq as MAX_Q,
+table3.prod as MAX_PROD,
+table3.mon as month,table3.days as day,table3.years as year,
+table3.state as ST,
+table1.avgq as AVG_Q
+from table1,table2,table3
+where table1.cust=table2.cust and table1.cust=table3.cust
+
+
+2)Query2 
+with table0 as
+(select month,day, sum(quant) as sum_q
+from sales
+group by month,day
+order by month,day)
+,
+
+table1 as
+(select month,max(sum_q) as max_q,min(sum_q) as min_q
+from table0
+group by month)
+,
+
+table2 as (Select table1.month,table0.day,table1.max_q
+		  from table1,table0
+		  where table0.sum_q = table1.max_q and table0.month=table1.month
+			order by table1.month),
+table3 as (Select table1.month,table0.day,table1.min_q
+		  from table1,table0
+		  where table0.sum_q = table1.min_q and table0.month=table1.month
+			order by table1.month),
+table4 as (select table2.month,table2.day as max_profit_day,table2.max_q as max_profit_total_q,table3.day as least_profit_day,table3.min_q as least_profit_total_q 
+		  from table2,table3
+		  where table2.month=table3.month
+		  order by table2.month)
+select * from table4
+
+
+
+
+3)Query3:
+with table0 as
+(select month,prod,sum(quant) as total
+from sales
+group by month,prod
+order by month,prod)
+
+,
+
+table1 as
+(select prod,max(total) as max_q,min(total) as min_q
+from table0
+group by prod)
+
+
+
+select table1.prod as PRODUCT,a.month as MOST_FAV_MO,b.month as LEAST_FAV_MO
+from table0 as a,table0 as b,table1
+where table1.max_q=a.total and table1.min_q=b.total
+order by table1.prod
+
+
+4)Query4
+with table1 as
+(select distinct cust,prod,Round(avg(quant),3) as q1
+from sales 
+where month in (1,2,3)
+group by cust,prod),
+
+table2 as
+(select distinct cust,prod,ROUND(avg(quant),3) as q2
+from sales 
+where month in (4,5,6)
+group by cust,prod),
+
+table3 as
+(select distinct cust,prod,Round(avg(quant),3) as q3
+from sales 
+where month in (7,8,9)
+group by cust,prod),
+
+table4 as
+(select distinct cust,prod,Round(avg(quant),3) as q4
+from sales 
+where month in (10,11,12)
+group by cust,prod),
+
+table5 as
+(select distinct cust,prod,Round(avg(quant),3) as Average,sum(quant) as Total,count(quant)
+from sales 
+group by cust,prod)
+
+select table5.cust as CUSTOMER,table5.prod as PRODUCT,
+table1.q1 as Q1_AVG,table2.q2 as Q2_AVG,table3.q3 as Q3_AVG,table4.q4 as Q4_AVG,
+table5.Average,table5.Total,table5.count
+from table5 
+left join table1 
+using (cust,prod)
+left join table2
+using (cust,prod)
+left join table3
+using (cust,prod)
+left join table4 
+using (cust,prod)
+order by table5.cust,table5.prod
+
+Query 5)
+with t0 as (Select distinct cust,prod
+		   from sales),
+ table0 as (select cust,prod,state,max(quant)as maxq
+			   from sales 
+			   group by cust,prod,state
+			   order by cust,prod)
+,
+table1 as ( select distinct table0.cust,table0.prod,table0.state,table0.maxq as maxnj,sales.month,sales.day,sales.year
+		  from table0,sales
+		  where table0.state='NJ'and table0.cust=sales.cust and 
+		   table0.prod=sales.prod and sales.quant=table0.maxq
+		  order by table0.cust,table0.prod),
+	
+
+table2 as ( select distinct table0.cust,table0.prod,table0.state,table0.maxq as maxny,sales.month,sales.day,sales.year
+		  from table0,sales
+		  where table0.state='NY'and table0.cust=sales.cust and 
+		   table0.prod=sales.prod and sales.quant=table0.maxq
+		  order by table0.cust,table0.prod),
+table3 as ( select distinct table0.cust,table0.prod,table0.state,table0.maxq as maxct,sales.month,sales.day,sales.year
+		  from table0,sales
+		  where table0.state='CT'and table0.cust=sales.cust and 
+		   table0.prod=sales.prod and sales.quant=table0.maxq
+		  order by table0.cust,table0.prod),
+table4 as (select t0.cust as customer,t0.prod as product,table1.maxnj as nj_max,table1.month,table1.day,table1.year,
+		   table2.maxny as Ny_max,table2.month,table2.day,table2.year,
+		   table3.maxct as CT_max,table3.month,table3.day,table3.year
+		  from t0 
+		  left join table1 
+		  using(cust,prod)
+		  left join table2
+		  using(cust,prod)
+		  left join table3
+		  using(cust,prod)
+		  where table2.maxny>table1.maxnj or table2.maxny>table3.maxct
+		  order by t0.cust,t0.prod)
+		   
+
+select * from table4
+
